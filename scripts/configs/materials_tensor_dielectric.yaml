@@ -1,0 +1,123 @@
+seed_everything: 35
+log_level: info
+
+data:
+  root: ../datasets
+  tensor_target_name: dielectric_tensor
+  trainset_filename: dielectric_tensor_train_symmetric.json
+  valset_filename: dielectric_tensor_val_symmetric.json
+  testset_filename: dielectric_tensor_test_symmetric.json
+  r_cut: 5.0
+  reuse: true
+  loader_kwargs:
+    batch_size: 16
+    shuffle: true
+  tensor_target_format: irreps        # 让 Dataset 把 3x3 Cartesian 转成 irreps
+  tensor_target_formula: ij=ji        # 二阶对称张量 (介电张量)
+
+
+model:
+  ##########
+  # embedding
+  ##########
+
+  # atom species embedding
+  species_embedding_dim: 48
+
+  # spherical harmonics embedding of edge direction
+  irreps_edge_sh: 0e + 1o + 2e + 3o 
+
+  # radial edge distance embedding
+  radial_basis_type: bessel
+  num_radial_basis: 8
+  radial_basis_start: 0.
+  radial_basis_end: 5.0
+
+  ##########
+  # message passing conv layers
+  ##########
+  num_layers: 3
+
+  # radial network
+  invariant_layers: 3 # number of radial layers
+  invariant_neurons: 32 # number of hidden neurons in radial function
+
+  # Average number of neighbors used for normalization. Options:
+  # 1. `auto` to determine it automatically, by setting it to average number
+  #    of neighbors of the training set
+  # 2. float or int provided here.
+  # 3. `null` to not use it
+  average_num_neighbors: auto
+
+  # point convolution
+  conv_layer_irreps: 48x0e + 6x2e
+  nonlinearity_type: gate
+  normalization: batch
+  resnet: true
+
+  ##########
+  # output
+  ##########
+
+  conv_to_output_hidden_irreps_out: 8x0e + 1x2e
+
+  # output_format and output_formula should be used together.
+  # - output_format (can be `irreps` or `cartesian`) determines what the loss
+  #   function will be on (either on the irreps space or the cartesian space).
+  # - output_formula gives what the cartesian formula of the tensor is.
+  #   For example, ijkl=jikl=klij specifies a forth-rank elasticity tensor.
+  output_format: irreps
+  output_formula: ij=ji
+  # pooling node feats to graph feats
+  reduce: mean
+
+trainer:
+  max_epochs: 1000
+  accelerator: gpu
+  devices: 1
+  logger:
+    class_path: pytorch_lightning.loggers.WandbLogger
+    init_args:
+      project: matten_dielectric_tensor
+      name: dielectric_tensor_run10
+      save_dir: ./wandb_logs
+
+
+  callbacks:
+    - class_path: pytorch_lightning.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val/score
+        mode: min
+        save_top_k: 3
+        save_last: true
+        verbose: false
+    - class_path: pytorch_lightning.callbacks.EarlyStopping
+      init_args:
+        monitor: val/score
+        mode: min
+        patience: 50
+        min_delta: 0
+        verbose: true
+    - class_path: pytorch_lightning.callbacks.ModelSummary
+      init_args:
+        max_depth: -1
+
+  #logger:
+  #  class_path: pytorch_lightning.loggers.wandb.WandbLogger
+  #  init_args:
+  #    save_dir: matten_logs
+  #    project: matten_proj
+
+optimizer:
+  class_path: torch.optim.Adam
+  init_args:
+    lr: 0.0001
+    weight_decay: 0
+
+lr_scheduler:
+  class_path: torch.optim.lr_scheduler.ReduceLROnPlateau
+  init_args:
+    mode: min
+    factor: 0.5
+    patience: 10
+    #verbose: true
