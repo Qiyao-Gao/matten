@@ -2,11 +2,11 @@ seed_everything: 35
 log_level: info
 
 data:
-  root: ../datasets
+  root: ../datasets/di_pizeoelectric_tensor
   tensor_target_name: dielectric_tensor
-  trainset_filename: dielectric_tensor_train.json
-  valset_filename: dielectric_tensor_val.json
-  testset_filename: dielectric_tensor_test.json
+  trainset_filename: dielectric_tensor_train_DTNet.json
+  valset_filename: dielectric_tensor_val_DTNet.json
+  testset_filename: dielectric_tensor_test_DTNet.json
   r_cut: 5.0
   reuse: true
   loader_kwargs:
@@ -29,18 +29,18 @@ model:
 
   # radial edge distance embedding
   radial_basis_type: bessel
-  num_radial_basis: 8
+  num_radial_basis: 32
   radial_basis_start: 0.
   radial_basis_end: 5.0
 
   ##########
   # message passing conv layers
   ##########
-  num_layers: 3
+  num_layers: 5
 
   # radial network
   invariant_layers: 3 # number of radial layers
-  invariant_neurons: 32 # number of hidden neurons in radial function
+  invariant_neurons: 64 # number of hidden neurons in radial function
 
   # Average number of neighbors used for normalization. Options:
   # 1. `auto` to determine it automatically, by setting it to average number
@@ -50,7 +50,7 @@ model:
   average_num_neighbors: auto
 
   # point convolution
-  conv_layer_irreps: 48x0e + 6x2e
+  conv_layer_irreps: 32x0e+4x2e 
   nonlinearity_type: gate
   normalization: batch
   resnet: true
@@ -59,7 +59,7 @@ model:
   # output
   ##########
 
-  conv_to_output_hidden_irreps_out: 8x0e + 1x2e
+  conv_to_output_hidden_irreps_out: 16x0e + 2x2e 
 
   # output_format and output_formula should be used together.
   # - output_format (can be `irreps` or `cartesian`) determines what the loss
@@ -79,9 +79,8 @@ trainer:
     class_path: pytorch_lightning.loggers.WandbLogger
     init_args:
       project: matten_dielectric_tensor
-      name: dielectric_tensor_run10
+      name: dielectric_tensor_run10_DTNet
       save_dir: ./wandb_logs
-
 
   callbacks:
     - class_path: pytorch_lightning.callbacks.ModelCheckpoint
@@ -91,6 +90,7 @@ trainer:
         save_top_k: 3
         save_last: true
         verbose: false
+
     - class_path: pytorch_lightning.callbacks.EarlyStopping
       init_args:
         monitor: val/score
@@ -98,10 +98,15 @@ trainer:
         patience: 50
         min_delta: 0
         verbose: true
+
     - class_path: pytorch_lightning.callbacks.ModelSummary
       init_args:
         max_depth: -1
 
+    # ✅ 加这个：W&B 里就会有 lr 曲线（lr-Adam 或 lr-Adam/pg0）
+    - class_path: pytorch_lightning.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: epoch
   #logger:
   #  class_path: pytorch_lightning.loggers.wandb.WandbLogger
   #  init_args:
@@ -112,7 +117,7 @@ optimizer:
   class_path: torch.optim.Adam
   init_args:
     lr: 0.0001
-    weight_decay: 0
+    weight_decay: 0.00001
 
 lr_scheduler:
   class_path: torch.optim.lr_scheduler.ReduceLROnPlateau
@@ -120,4 +125,7 @@ lr_scheduler:
     mode: min
     factor: 0.5
     patience: 10
-    #verbose: true
+  # ✅ 关键：Plateau 必须知道监控哪个指标
+  monitor: val/score
+  interval: epoch
+  frequency: 1

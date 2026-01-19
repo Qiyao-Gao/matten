@@ -2,18 +2,17 @@ seed_everything: 35
 log_level: info
 
 data:
-  root: ../datasets
-  tensor_target_name: dielectric_tensor
-  trainset_filename: dielectric_tensor_train.json
-  valset_filename: dielectric_tensor_val.json
-  testset_filename: dielectric_tensor_test.json
+  root: ../datasets/di_pizeoelectric_tensor
+  tensor_target_name: piezoelectric_tensor
+  trainset_filename: piezoelectric_tensor_train.json
+  valset_filename:   piezoelectric_tensor_val.json
+  testset_filename:  piezoelectric_tensor_test.json
   r_cut: 5.0
-  reuse: true
+  reuse: false
   loader_kwargs:
     batch_size: 16
     shuffle: true
-  tensor_target_format: irreps        # 让 Dataset 把 3x3 Cartesian 转成 irreps
-  tensor_target_formula: ij=ji        # 二阶对称张量 (介电张量)
+  tensor_target_formula: ijk=ikj        # 三阶对称张量 (压电张量)
 
 
 model:
@@ -22,16 +21,16 @@ model:
   ##########
 
   # atom species embedding
-  species_embedding_dim: 48
+  species_embedding_dim: 16
 
   # spherical harmonics embedding of edge direction
   irreps_edge_sh: 0e + 1o + 2e + 3o 
 
   # radial edge distance embedding
   radial_basis_type: bessel
-  num_radial_basis: 8
+  num_radial_basis: 4
   radial_basis_start: 0.
-  radial_basis_end: 5.0
+  radial_basis_end: 5.
 
   ##########
   # message passing conv layers
@@ -39,7 +38,7 @@ model:
   num_layers: 3
 
   # radial network
-  invariant_layers: 3 # number of radial layers
+  invariant_layers: 2 # number of radial layers
   invariant_neurons: 32 # number of hidden neurons in radial function
 
   # Average number of neighbors used for normalization. Options:
@@ -50,7 +49,7 @@ model:
   average_num_neighbors: auto
 
   # point convolution
-  conv_layer_irreps: 48x0e + 6x2e
+  conv_layer_irreps: 4x0o+4x0e + 32x1o+32x1e + 16x2o+16x2e + 8x3o+8x3e 
   nonlinearity_type: gate
   normalization: batch
   resnet: true
@@ -59,7 +58,7 @@ model:
   # output
   ##########
 
-  conv_to_output_hidden_irreps_out: 8x0e + 1x2e
+  conv_to_output_hidden_irreps_out: 4x0o+4x0e + 32x1o+32x1e + 16x2o+16x2e + 8x3o+8x3e 
 
   # output_format and output_formula should be used together.
   # - output_format (can be `irreps` or `cartesian`) determines what the loss
@@ -67,7 +66,8 @@ model:
   # - output_formula gives what the cartesian formula of the tensor is.
   #   For example, ijkl=jikl=klij specifies a forth-rank elasticity tensor.
   output_format: irreps
-  output_formula: ij=ji
+  output_formula: ijk=ikj
+
   # pooling node feats to graph feats
   reduce: mean
 
@@ -78,8 +78,8 @@ trainer:
   logger:
     class_path: pytorch_lightning.loggers.WandbLogger
     init_args:
-      project: matten_dielectric_tensor
-      name: dielectric_tensor_run10
+      project: matten_piezoelectric_tensor_tensor
+      name: piezoelectric_tensor_tensor_run1
       save_dir: ./wandb_logs
 
 
@@ -95,7 +95,7 @@ trainer:
       init_args:
         monitor: val/score
         mode: min
-        patience: 50
+        patience: 150
         min_delta: 0
         verbose: true
     - class_path: pytorch_lightning.callbacks.ModelSummary
@@ -119,5 +119,5 @@ lr_scheduler:
   init_args:
     mode: min
     factor: 0.5
-    patience: 10
+    patience: 50
     #verbose: true

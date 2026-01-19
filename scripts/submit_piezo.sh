@@ -11,6 +11,6 @@
 
 conda activate matten
 export WANDB_BASE_URL="https://api.bandw.top"
-#python train_materials_tensor.py        # 执行计算任务
-#python train_materials_tensor_piezoelectric.py
-python train_materials_tensor_piezoelectric.py
+#python ./train_materials_tensor_piezoelectric/train_materials_tensor.py        # 执行计算任务
+#python ./train_materials_tensor_piezoelectric/train_materials_tensor_piezoelectric.py
+python ./train_materials_tensor_piezoelectric/train_materials_tensor_piezoelectric.py

@@ -12,7 +12,7 @@ from torch import Tensor
 from matten.data.data import DataPoint
 from matten.model.task import Task, TaskType
 from matten.model.utils import TimeMeter
-
+from matten.utils import ToCartesian
 
 class BaseModel(pl.LightningModule):
     """
@@ -489,7 +489,43 @@ class ModelForPyGData(BaseModel):
         - init_tasks(): create tasks that initialize the loss function and metrics
 
     """
+    def _upper_triangular_3x3(x: Tensor) -> Tensor:
 
+        idx = torch.triu_indices(3, 3, offset=0, device=x.device)
+        return x[..., idx[0], idx[1]]
+
+
+    @torch.no_grad()
+    def _cartesian_mae_mse_from_irreps(
+        pred_irreps: Tensor,
+        target_irreps: Tensor,
+        formula: str = "ij=ji",
+        use_unique6: bool = True,
+    ) -> tuple[Tensor, Tensor]:
+        """
+        只用于评估：把 irreps 表示的二阶张量转成 Cartesian 3x3 后，
+        计算 MAE/MSE。
+
+        pred_irreps/target_irreps: [B, dim_irreps]（例如 0e+2e 对应 6 维）
+        formula: 张量公式（你这里是 ij=ji）
+        use_unique6: True 表示只算 6 个独立分量；False 表示算 9 个元素
+        """
+        to_cart = ToCartesian(formula)
+
+        pred_cart = to_cart(pred_irreps)      # -> [B, 3, 3]
+        targ_cart = to_cart(target_irreps)    # -> [B, 3, 3]
+
+        if use_unique6:
+            pred_vec = _upper_triangular_3x3(pred_cart)   # [B, 6]
+            targ_vec = _upper_triangular_3x3(targ_cart)   # [B, 6]
+        else:
+            pred_vec = pred_cart.reshape(pred_cart.shape[0], -1)  # [B, 9]
+            targ_vec = targ_cart.reshape(targ_cart.shape[0], -1)  # [B, 9]
+
+        diff = pred_vec - targ_vec
+        mae = diff.abs().mean()
+        mse = (diff ** 2).mean()
+        return mae, mse
     def preprocess_batch(self, batch: DataPoint) -> Tuple[DataPoint, Dict[str, Tensor]]:
         """
         Preprocess the batch data to get model input and labels.
@@ -531,3 +567,4 @@ class ModelForPyGData(BaseModel):
         preds = self.backbone(model_input)
 
         return preds
+        
