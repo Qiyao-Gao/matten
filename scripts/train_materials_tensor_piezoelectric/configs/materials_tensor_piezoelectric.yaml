@@ -2,11 +2,11 @@ seed_everything: 35
 log_level: info
 
 data:
-  root: ../datasets/di_pizeoelectric_tensor
+  root: ./datasets/sampled20_splits
   tensor_target_name: piezoelectric_tensor
-  trainset_filename: piezoelectric_tensor_train.json
-  valset_filename:   piezoelectric_tensor_val.json
-  testset_filename:  piezoelectric_tensor_test.json
+  trainset_filename: train.json
+  valset_filename:   val.json
+  testset_filename:  test.json
   r_cut: 5.0
   reuse: false
   loader_kwargs:
@@ -72,14 +72,16 @@ model:
   reduce: mean
 
 trainer:
-  max_epochs: 1000
-  accelerator: gpu
+  max_epochs: 50
+  accelerator: cpu
   devices: 1
+  precision: 32
+  log_every_n_steps: 20
   logger:
     class_path: pytorch_lightning.loggers.WandbLogger
     init_args:
-      project: matten_dielectric_tensor
-      name: dielectric_tensor_run4_DTNet
+      project: matten_piezoelectric_tensor_local
+      name: piezoelectric_tensor_run1
       save_dir: ./wandb_logs
 
   callbacks:
@@ -103,7 +105,7 @@ trainer:
       init_args:
         max_depth: -1
 
-    # ✅ 加这个：W&B 里就会有 lr 曲线（lr-Adam 或 lr-Adam/pg0）
+    #  加这个：W&B 里就会有 lr 曲线（lr-Adam 或 lr-Adam/pg0）
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args:
         logging_interval: epoch
@@ -125,7 +127,7 @@ lr_scheduler:
     mode: min
     factor: 0.5
     patience: 10
-  # ✅ 关键：Plateau 必须知道监控哪个指标
+  #  关键：Plateau 必须知道监控哪个指标
   monitor: val/score
   interval: epoch
   frequency: 1

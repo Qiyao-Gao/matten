@@ -28,7 +28,7 @@ share/python-wheels/
 MANIFEST
 dataset/
 datasets/
-
+*.ps1
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -140,3 +140,8 @@ wandb_logs/
 .DS_Store
 dataset_statistics.pt
 running_metadata.yaml
+
+#training outputs
+*.out
+*.err
+

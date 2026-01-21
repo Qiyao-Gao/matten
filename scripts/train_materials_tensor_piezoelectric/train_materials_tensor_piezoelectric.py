@@ -26,7 +26,7 @@ def instantiate_class(d: Union[Dict, List]):
 
 def get_args(path: Path):
     """Get the arguments from the config file."""
-    with open(path, "r") as f:
+    with open(path, "r",encoding="utf-8") as f:
         config = yaml.safe_load(f)
     return config
 

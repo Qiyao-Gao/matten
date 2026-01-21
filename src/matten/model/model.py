@@ -14,42 +14,15 @@ from matten.model.task import Task, TaskType
 from matten.model.utils import TimeMeter
 from matten.utils import ToCartesian
 
+
 class BaseModel(pl.LightningModule):
     """
     Base matten model for regression and classification tasks.
 
     This class accepts any type of data as batch. Subclass determines how the batch
     should be dealt with.
-
-    Args:
-        tasks: tasks that define the loss and metric. See matten.model.task
-        backbone_hparams: hparams for the backbone model
-        dataset_hparams: info from the dataset to initialize the model or tasks
-        optimizer_hparams: hparams for the optimizer (e.g. Adam)
-        lr_scheduler_hparams: hparams for the learning rate scheduler (e.g.
-            ReduceLROnPlateau)
-        trainer_hparams: trainer config params. These should not be used by the model,
-            but to let the wandb logger log them. Then we can filter info on the wandb
-            web interface.
-        data_hparams: data config params. Similar to trainer_hparams, for the purpose
-            of wandb filtering.
-
-    Subclass must implement:
-        - init_backbone(): create the underlying torch model
-        - init_tasks(): create tasks that initialize the loss function and metrics
-        - preprocess_batch(): preprocess the batched data to get input for the model
-          and labels
-        - decode(): compute model prediction using the torch model
-
-    subclass may implement:
-        - compute_loss(): compute the loss using model prediction and the target
     """
 
-    # TODO, for `tasks`, instance of Task will be passed.
-    #  When saving checkpoint, the instantiated object will be saved, and when
-    #  loading it back, the object will be loaded (although at a different address).
-    #  This can work without any problem, but we may want to pass hyperparams for
-    #  tasks in and instantiate it in the model (just as optimizer_hparams).
     def __init__(
         self,
         tasks: Union[Task, List[Task], Dict[str, Task]] = None,
@@ -80,22 +53,19 @@ class BaseModel(pl.LightningModule):
         # losses
         self.loss_fns = {name: task.init_loss() for name, task in self.tasks.items()}
 
-        # metrics
-        # dict of dict: {mode: {task_name: metric_object}}
+        # metrics: {mode: {task_name: MetricCollection}}
         self.metrics = nn.ModuleDict()
         for mode in ["train", "val", "test"]:
-            # cannot use `train` directly (already a submodule of the class)
-            mode = "metric_" + mode
-            self.metrics[mode] = nn.ModuleDict()
+            mode_key = "metric_" + mode
+            self.metrics[mode_key] = nn.ModuleDict()
             for name, task in self.tasks.items():
                 mc = task.init_metric_as_collection()
-                self.metrics[mode][name] = mc
+                self.metrics[mode_key][name] = mc
 
         # timer
         self.timer = TimeMeter()
 
-        # callback monitor key. Should set argument `monitor` of the ModelCheckpoint to
-        # this. Same for other callbacks
+        # callback monitor key
         self.monitor_key = "val/score"
 
     def init_backbone(
@@ -103,41 +73,20 @@ class BaseModel(pl.LightningModule):
         backbone_hparams: Dict[str, Any],
         dataset_hparams: Optional[Dict[str, Any]] = None,
     ) -> nn.Module:
-        """
-        Create a backbone torch model.
-
-        A pytorch or lightning model that can be called like:
-        `model(graphs, *args, **kwargs)`
-        The model should return a dictionary of {task_name: task_prediction}, where the
-        task_name should the name of one task defined in `init_tasks()` and
-        task_prediction should be a tensor.
-
-        This will be called in the `decode()` function.
-        Oftentimes, the underlying model may not return a dictionary (e.g. when using
-        existing models). In this case, the model prediction should be converted to a
-        dictionary in the `decode()` function.
-        """
         raise NotImplementedError
 
     def init_tasks(
         self, tasks: Union[Task, List[Task], Dict[str, Task]]
     ) -> Dict[str, Task]:
-        """
-        Convert tasks to a dict, keyed by task name and valued by task object.
-        """
-
         if isinstance(tasks, dict):
             for name, t in tasks.items():
-                assert (
-                    name == t.name
-                ), f"Task name not consistent; got {name} and {t.name}"
+                assert name == t.name, f"Task name not consistent; got {name} and {t.name}"
         elif isinstance(tasks, Task):
             tasks = {tasks.name: tasks}
         elif isinstance(tasks, list):
             tasks = {t.name: t for t in tasks}
         else:
             raise ValueError(f"Unsupported tasks type {type(tasks)}")
-
         return tasks
 
     def forward(
@@ -147,30 +96,8 @@ class BaseModel(pl.LightningModule):
         task_name: str = "elastic_tensor_full",
         **kwargs,
     ) -> Tuple[Dict, Dict]:
-        """
-        Forward pass step for prediction.
-
-        Intended for prediction use and will not be called at training time. Instead,
-        train_step/validation_step will be called at training time.
-
-        Args:
-            batch:
-            mode: select what to return. See `Returns` below.
-            kwargs: extra arguments needed by the model.
-
-        The functionality here is largely the same as `self.shared_step()`.
-
-        Returns:
-            A tuple of (predictions, labels), each is a dictionary. The content of
-            predictions depends on the value of mode:
-                If None, returns the model predictions: backbone + decoder.
-                If `backbone`, returns the backbone prediction.
-        """
-
-        # ========== preprocess batch ==========
         graphs, labels = self.preprocess_batch(batch)
 
-        # ========== compute predictions ==========
         if mode is None or mode.lower() == "none":
             preds = self.decode(graphs, **kwargs)
             preds = self.transform_prediction(preds, task_name=task_name)
@@ -183,52 +110,16 @@ class BaseModel(pl.LightningModule):
 
         return preds, labels
 
-    def transform_prediction(self, prediction: Dict[str, Tensor]) -> Dict[str, Tensor]:
-        """
-        Transform the predictions before returning for use.
-
-        This is different from `transform_{pred,target}_{loss,metric}` in task,
-        which is used internally when training the model. This transform is supposed
-        to be used in `self.forward()`, which provides the final prediction of the
-        model.
-
-        Args:
-            prediction: predictions of the decoder
-
-        Returns:
-            Transformed predictions.
-        """
+    def transform_prediction(self, prediction: Dict[str, Tensor], task_name: str = None) -> Dict[str, Tensor]:
         return prediction
 
-    def transform_target(self, target: Dict[str, Tensor]) -> Dict[str, Tensor]:
-        """
-        Similar to `self.transform_prediction()`, but for target.
-        """
+    def transform_target(self, target: Dict[str, Tensor], task_name: str = None) -> Dict[str, Tensor]:
         return target
 
     def preprocess_batch(self, batch) -> Tuple[Any, Dict[str, Tensor]]:
-        """
-        preprocess the batch data to get model input and labels.
-
-        Args:
-            batch: batched data
-
-        Returns:
-            A tuple of (model_input, labels), where labels should be a dict of tensors,
-            i.e. {task_name: task_label}
-        """
         raise NotImplementedError
 
     def decode(self, model_input, *args, **kwargs) -> Dict[str, Tensor]:
-        """
-        Compute prediction for each task using the backbone model.
-
-        Args:
-            model_input: input for the model to make predictions, e.g. batched graphs
-
-        Returns:
-            {task_name: task_prediction}
-        """
         raise NotImplementedError
 
     def compute_loss(
@@ -237,18 +128,6 @@ class BaseModel(pl.LightningModule):
         labels: Dict[str, Tensor],
         weight: Tensor = None,
     ) -> Tuple[Dict[str, Tensor], Tensor]:
-        """
-        Compute the loss for each task.
-
-        Args:
-            preds: {task_name, prediction} prediction for each task
-            labels: {task_name, label} labels for each task
-            weight: weight factor to be multiplied by predictions and labels
-
-        Returns:
-            individual_loss: {task_name: loss} loss of individual task
-            total_loss: total loss, weighted sum of individual loss
-        """
         individual_losses = {}
         total_loss = 0.0
 
@@ -257,12 +136,12 @@ class BaseModel(pl.LightningModule):
             l = labels[task_name]
             p = task.transform_pred_loss(p)
             l = task.transform_target_loss(l)
+
             if weight is not None:
                 p = p * weight
                 l = l * weight
 
             if task.task_type == TaskType.CLASSIFICATION and task.is_binary():
-                # this will use BCEWithLogitsLoss, which requires label be of float
                 p = p.reshape(-1)
                 l = l.reshape(-1).to(torch.get_default_dtype())
 
@@ -276,7 +155,6 @@ class BaseModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         loss, preds, labels = self.shared_step(batch, "train")
         self.update_metrics(preds, labels, "train")
-
         return {"loss": loss}
 
     def on_training_epoch_end(self):
@@ -285,81 +163,46 @@ class BaseModel(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         loss, preds, labels = self.shared_step(batch, "val")
         self.update_metrics(preds, labels, "val")
-
         return {"loss": loss}
 
     def on_validation_epoch_end(self):
         _, score = self.compute_metrics("val")
 
-        # val/score used for early stopping and learning rate scheduler
         if score is not None:
-            self.log(
-                self.monitor_key, score, on_step=False, on_epoch=True, prog_bar=True
-            )
+            self.log(self.monitor_key, score, on_step=False, on_epoch=True, prog_bar=True)
 
-        # time it
         delta_t, cumulative_t = self.timer.update()
         self.log("epoch time", delta_t, on_step=False, on_epoch=True, prog_bar=True)
-        self.log(
-            "cumulative time", cumulative_t, on_step=False, on_epoch=True, prog_bar=True
-        )
+        self.log("cumulative time", cumulative_t, on_step=False, on_epoch=True, prog_bar=True)
 
     def test_step(self, batch, batch_idx):
         loss, preds, labels = self.shared_step(batch, "test")
         self.update_metrics(preds, labels, "test")
-
         return {"loss": loss}
 
     def on_test_epoch_end(self):
         self.compute_metrics("test")
 
     def shared_step(self, batch, mode: str):
-        """
-        Shared computation step.
-
-        Args:
-            batch: data batch, obtained from dataloader
-            mode: train, val, or test
-        """
-
-        # `batch_size` needed to ensure the values logged via self.log are correctly
-        # averaged across batch, because batch is PyG graph, and thus lightning
-        # cannot automatically detect the batch size.
-        # NOTE, using batch_size or not does not affect the results (i.e.
-        # loss, metrics, and monitor_key) since we compute them directly. It only
-        # affects the logged value via self.log (which is averaged).
-        # TODO 1. move this to the below ModelForPyGData; 2. this only works when
-        #  each graph has 1 target, if multiple need update.
         batch_size = batch.num_graphs
 
-        # ========== preprocess batch ==========
         graphs, labels = self.preprocess_batch(batch)
-
-        # ========== compute predictions ==========
         preds = self.decode(graphs)
 
-        # select atoms
         if "atom_selector" in labels:
             selector = labels["atom_selector"]
             preds = {k: v[selector] for k, v in preds.items()}
 
-        # ========== compute losses ==========
         target_weight = graphs.get("target_weight", None)
-        individual_loss, total_loss = self.compute_loss(
-            preds, labels, weight=target_weight
-        )
+        individual_loss, total_loss = self.compute_loss(preds, labels, weight=target_weight)
 
         self.log_dict(
-            {
-                f"{mode}/loss/{task_name}": loss
-                for task_name, loss in individual_loss.items()
-            },
+            {f"{mode}/loss/{task_name}": loss for task_name, loss in individual_loss.items()},
             on_step=False,
             on_epoch=True,
             prog_bar=False,
             batch_size=batch_size,
         )
-
         self.log(
             f"{mode}/total_loss",
             total_loss,
@@ -372,16 +215,9 @@ class BaseModel(pl.LightningModule):
         return total_loss, preds, labels
 
     def update_metrics(self, preds: Dict, labels: Dict, mode: str):
-        """
-        Update metric values at each step, i.e. keep record of values of each step that
-        will be used to compute the epoch metrics.
+        mode_key = "metric_" + mode
 
-        Args:
-            mode: train, val, or test
-        """
-        mode = "metric_" + mode
-
-        for task_name, metric in self.metrics[mode].items():
+        for task_name, metric in self.metrics[mode_key].items():
             task = self.tasks[task_name]
 
             p = task.transform_pred_metric(preds[task_name])
@@ -398,40 +234,25 @@ class BaseModel(pl.LightningModule):
     def compute_metrics(
         self, mode, log: bool = True
     ) -> Tuple[Dict[str, Tensor], Union[Tensor, None]]:
-        """
-        Compute metric and logger it at each epoch.
-
-        Args:
-            mode: `train`, `val`, or `test`
-            log: whether to log the metrics
-
-        Returns:
-            individual_score: individual metric scores, {task_name: scores},
-                where scores is a dict.
-            score: aggregated score. `None` if metric_aggregation() of task is not set.
-        """
-
-        mode = "metric_" + mode
+        mode_key = "metric_" + mode
 
         total_score = None
         individual_score = {}
 
-        for task_name, metric_coll in self.metrics[mode].items():
-            # metric collection output, a dict: {metric_name: metric_value}
+        for task_name, metric_coll in self.metrics[mode_key].items():
             score = metric_coll.compute()
             individual_score[task_name] = score
 
             if log:
                 for metric_name, metric_value in score.items():
                     self.log(
-                        f"{mode}/{metric_name}/{task_name}",
+                        f"{mode_key}/{metric_name}/{task_name}",
                         metric_value,
                         on_step=False,
                         on_epoch=True,
                         prog_bar=False,
                     )
 
-            # compute score for model checkpoint and early stopping
             task = self.tasks[task_name]
             metric_agg_dict = task.metric_aggregation()
             if metric_agg_dict:
@@ -439,132 +260,176 @@ class BaseModel(pl.LightningModule):
                 for metric_name, weight in metric_agg_dict.items():
                     total_score = total_score + score[metric_name] * weight
 
-            # reset to initial state for next epoch
             metric_coll.reset()
 
         return individual_score, total_score
 
     def configure_optimizers(self):
-        # optimizer
         model_params = (filter(lambda p: p.requires_grad, self.parameters()),)
         optimizer = instantiate_class(model_params, self.optimizer_hparams)
 
-        # lr scheduler
         scheduler = self._config_lr_scheduler(optimizer)
 
         if scheduler is None:
             return optimizer
         else:
-            return {
-                "optimizer": optimizer,
-                "lr_scheduler": scheduler,
-                "monitor": self.monitor_key,
-            }
+            return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": self.monitor_key}
 
     def _config_lr_scheduler(self, optimizer):
-        """
-        Configure lr scheduler.
-
-        This allows not to use a lr scheduler. To achieve this, set `class_path` under
-        `lr_scheduler` to `none` or `null`.
-
-        Return:
-            lr scheduler or None
-        """
         class_path = self.lr_scheduler_hparams.get("class_path")
         if class_path is None or class_path == "none":
             scheduler = None
         else:
             scheduler = instantiate_class(optimizer, self.lr_scheduler_hparams)
-
         return scheduler
 
 
 class ModelForPyGData(BaseModel):
     """
     A lightning model working with data provided as PyG batched data.
-
-    Subclass must implement:
-        - init_backbone(): create the underlying torch model
-        - init_tasks(): create tasks that initialize the loss function and metrics
-
     """
-    def _upper_triangular_3x3(x: Tensor) -> Tensor:
 
-        idx = torch.triu_indices(3, 3, offset=0, device=x.device)
-        return x[..., idx[0], idx[1]]
+    # --------------------------
+    # 1) Cartesian test-only metrics helpers (FULL Cartesian MAE/MSE)
+    # --------------------------
+    @staticmethod
+    def _tensor_rank_from_formula(formula: str) -> int:
+        lhs = formula.split("=")[0].replace("-", "").strip()
+        return len(lhs)
 
+    @staticmethod
+    def _squeeze_irreps(x: Tensor) -> Tensor:
+        if x.ndim == 3 and x.shape[1] == 1:
+            return x[:, 0, :]
+        return x
 
+    @staticmethod
     @torch.no_grad()
-    def _cartesian_mae_mse_from_irreps(
+    def _cartesian_full_mae_mse_from_irreps(
         pred_irreps: Tensor,
         target_irreps: Tensor,
-        formula: str = "ij=ji",
-        use_unique6: bool = True,
-    ) -> tuple[Tensor, Tensor]:
-        """
-        只用于评估：把 irreps 表示的二阶张量转成 Cartesian 3x3 后，
-        计算 MAE/MSE。
+        formula: str,
+    ) -> Tuple[Tensor, Tensor]:
+        pred_irreps = ModelForPyGData._squeeze_irreps(pred_irreps)
+        target_irreps = ModelForPyGData._squeeze_irreps(target_irreps)
 
-        pred_irreps/target_irreps: [B, dim_irreps]（例如 0e+2e 对应 6 维）
-        formula: 张量公式（你这里是 ij=ji）
-        use_unique6: True 表示只算 6 个独立分量；False 表示算 9 个元素
-        """
         to_cart = ToCartesian(formula)
 
-        pred_cart = to_cart(pred_irreps)      # -> [B, 3, 3]
-        targ_cart = to_cart(target_irreps)    # -> [B, 3, 3]
+        pred_cart = to_cart(pred_irreps)
+        targ_cart = to_cart(target_irreps)
 
-        if use_unique6:
-            pred_vec = _upper_triangular_3x3(pred_cart)   # [B, 6]
-            targ_vec = _upper_triangular_3x3(targ_cart)   # [B, 6]
-        else:
-            pred_vec = pred_cart.reshape(pred_cart.shape[0], -1)  # [B, 9]
-            targ_vec = targ_cart.reshape(targ_cart.shape[0], -1)  # [B, 9]
+        rank = ModelForPyGData._tensor_rank_from_formula(formula)
+
+        pred_cart = pred_cart.reshape(pred_cart.shape[0], *([3] * rank))
+        targ_cart = targ_cart.reshape(targ_cart.shape[0], *([3] * rank))
+
+        pred_vec = pred_cart.reshape(pred_cart.shape[0], -1)
+        targ_vec = targ_cart.reshape(targ_cart.shape[0], -1)
 
         diff = pred_vec - targ_vec
         mae = diff.abs().mean()
         mse = (diff ** 2).mean()
         return mae, mse
+
+    # --------------------------
+    # 2) Robust formula getter (CRITICAL FIX)
+    # --------------------------
+    def _get_tensor_formula(self, task_name: str, task) -> str:
+        """
+        按优先级取 formula，确保和数据/模型一致：
+        1) task 自己带的（如果有）
+        2) hparams 里的 data_hparams / data 里的 tensor_target_formula
+        3) hparams 里的 backbone_hparams / model 的 output_formula
+        找不到就直接报错，避免静默用错公式
+        """
+        # 1) task-level (如果你的 Task 类里存了 formula)
+        for attr in ("tensor_target_formula", "target_formula", "formula", "output_formula"):
+            v = getattr(task, attr, None)
+            if isinstance(v, str) and v.strip():
+                return v.strip()
+
+        # 2) data-level
+        for key in ("data_hparams", "data", "dataset_hparams"):
+            dh = self.hparams.get(key, None)
+            if isinstance(dh, dict):
+                v = dh.get("tensor_target_formula", None)
+                if isinstance(v, str) and v.strip():
+                    return v.strip()
+
+        # 3) model/backbone-level
+        for key in ("backbone_hparams", "model_hparams", "model"):
+            mh = self.hparams.get(key, None)
+            if isinstance(mh, dict):
+                v = mh.get("output_formula", None)
+                if isinstance(v, str) and v.strip():
+                    return v.strip()
+
+        # 如果你希望按任务名区分，也可以在这里做 task_name->formula 映射
+
+        raise RuntimeError(
+            f"[Cartesian metric] Cannot find tensor formula for task={task_name}. "
+            f"Please set data.tensor_target_formula AND model.output_formula in your yaml."
+        )
+
+    # --------------------------
+    # 3) Your existing batch processing
+    # --------------------------
     def preprocess_batch(self, batch: DataPoint) -> Tuple[DataPoint, Dict[str, Tensor]]:
-        """
-        Preprocess the batch data to get model input and labels.
-
-        Note, this requires all the labels be stored as a dict in `y` of PyG data.
-
-        Args:
-            batch: PyG batched data
-
-        Returns:
-            (model_input, labels), where model_input is batched graph and labels
-                is a dict of tensors, i.e. {task_name: task_label}
-        """
-
         graphs = batch
-        graphs = graphs.to(self.device)  # lightning cannot move graphs to gpu
+        graphs = graphs.to(self.device)
 
-        # task labels
         labels = {name: graphs.y[name] for name in self.tasks}
         if "atom_selector" in graphs.y:
             labels["atom_selector"] = graphs.y["atom_selector"]
 
-        # convert graphs to a dict to use NequIP stuff
         graphs = graphs.tensor_property_to_dict()
-
         return graphs, labels
 
     def decode(self, model_input: DataPoint, *args, **kwargs) -> Dict[str, Tensor]:
-        """
-        Compute prediction for each task using the backbone model.
+        return self.backbone(model_input)
 
-        Args:
-            model_input: (batched) PyG graph
+    # --------------------------
+    # 4) Override test_step: keep irreps metrics + add FULL Cartesian MAE/MSE (test-only)
+    # --------------------------
+    def test_step(self, batch, batch_idx):
+        loss, preds, labels = self.shared_step(batch, "test")
+        self.update_metrics(preds, labels, "test")
 
-        Returns:
-            {task_name: task_prediction}
-        """
+        batch_size = batch.num_graphs
 
-        preds = self.backbone(model_input)
+        for task_name, task in self.tasks.items():
+            if task.task_type != TaskType.REGRESSION:
+                continue
 
-        return preds
-        
+            p_ir = task.transform_pred_metric(preds[task_name])
+            l_ir = task.transform_target_metric(labels[task_name])
+
+            # ✅ 关键：取到正确的 ijk=ikj / ij=ji / ijkl=... 等
+            formula = self._get_tensor_formula(task_name, task)
+
+            mae_cart, mse_cart = ModelForPyGData._cartesian_full_mae_mse_from_irreps(
+                pred_irreps=p_ir,
+                target_irreps=l_ir,
+                formula=formula,
+            )
+
+            self.log(
+                f"metric_test/MAE_Cartesian/{task_name}",
+                mae_cart,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
+                batch_size=batch_size,
+                sync_dist=False,
+            )
+            self.log(
+                f"metric_test/MSE_Cartesian/{task_name}",
+                mse_cart,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
+                batch_size=batch_size,
+                sync_dist=False,
+            )
+
+        return {"loss": loss}
