@@ -69,7 +69,7 @@ def main(config: Dict):
 
 
 if __name__ == "__main__":
-    config_file = Path(__file__).parent / "configs" / "materials_tensor.yaml"
+    config_file = Path(__file__).parent / "configs" / "materials_tensor_dielectric.yaml"
     config = get_args(config_file)
 
     seed = config.get("seed_everything", 1)

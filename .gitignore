@@ -145,3 +145,15 @@ running_metadata.yaml
 *.out
 *.err
 
+dielectric_tensor/
+lightning_logs/
+results/
+slrum_piezo_log
+slurm_bec_log/
+slurm_di_log/
+train_bec/
+train_piezoelectric/
+train_materials_tensor_dielectric/
+
+wandb_logs/
+*.sh

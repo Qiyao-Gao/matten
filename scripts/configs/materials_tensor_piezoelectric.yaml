@@ -4,11 +4,12 @@ log_level: info
 data:
   root: ../datasets/di_pizeoelectric_tensor
   tensor_target_name: piezoelectric_tensor
-  trainset_filename: piezoelectric_tensor_train2.json
-  valset_filename:   piezoelectric_tensor_val2.json
-  testset_filename:  piezoelectric_tensor_test2.json
+  trainset_filename: piezoelectric_tensor_train.json
+  valset_filename:   piezoelectric_tensor_val.json
+  testset_filename:  piezoelectric_tensor_test.json
+  normalize_tensor: True
   r_cut: 5.0
-  reuse: true
+  reuse: false
   loader_kwargs:
     batch_size: 16
     shuffle: true
@@ -39,7 +40,7 @@ model:
 
   # radial network
   invariant_layers: 2 # number of radial layers
-  invariant_neurons: 16 # number of hidden neurons in radial function
+  invariant_neurons: 32 # number of hidden neurons in radial function
 
   # Average number of neighbors used for normalization. Options:
   # 1. `auto` to determine it automatically, by setting it to average number
@@ -49,7 +50,7 @@ model:
   average_num_neighbors: auto
 
   # point convolution
-  conv_layer_irreps: 16x0o+16x0e + 8x1o+8x1e + 4x2o+4x2e + 2x3o+2x3e 
+  conv_layer_irreps: 4x0o+4x0e + 32x1o+32x1e + 16x2o+16x2e + 8x3o+8x3e 
   nonlinearity_type: gate
   normalization: batch
   resnet: true
@@ -58,7 +59,7 @@ model:
   # output
   ##########
 
-  conv_to_output_hidden_irreps_out: 8x0e + 2x2e + 1x3o
+  conv_to_output_hidden_irreps_out: 4x0o+4x0e + 32x1o+32x1e + 16x2o+16x2e + 8x3o+8x3e 
 
   # output_format and output_formula should be used together.
   # - output_format (can be `irreps` or `cartesian`) determines what the loss
@@ -79,7 +80,7 @@ trainer:
     class_path: pytorch_lightning.loggers.WandbLogger
     init_args:
       project: matten_piezoelectric_tensor_tensor
-      name: piezoelectric_tensor_tensor_run10
+      name: piezoelectric_tensor_tensor_run1
       save_dir: ./wandb_logs
 
 

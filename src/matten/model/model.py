@@ -309,7 +309,8 @@ class ModelForPyGData(BaseModel):
         pred_irreps: Tensor,
         target_irreps: Tensor,
         formula: str,
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        """Return (pred_vec, targ_vec, mae, mse) for Cartesian space metrics."""
         pred_irreps = ModelForPyGData._squeeze_irreps(pred_irreps)
         target_irreps = ModelForPyGData._squeeze_irreps(target_irreps)
 
@@ -329,7 +330,7 @@ class ModelForPyGData(BaseModel):
         diff = pred_vec - targ_vec
         mae = diff.abs().mean()
         mse = (diff ** 2).mean()
-        return mae, mse
+        return pred_vec, targ_vec, mae, mse
 
     # --------------------------
     # 2) Robust formula getter (CRITICAL FIX)
@@ -391,6 +392,48 @@ class ModelForPyGData(BaseModel):
     # --------------------------
     # 4) Override test_step: keep irreps metrics + add FULL Cartesian MAE/MSE (test-only)
     # --------------------------
+    def on_test_start(self):
+        """Reset accumulation for MAE/MAD computation."""
+        super().on_test_start()
+        self._test_cartesian_preds = {}
+        self._test_cartesian_targets = {}
+
+    def on_test_epoch_end(self):
+        """Compute and log MAE/MAD (MAE divided by MAD) for wandb."""
+        super().on_test_epoch_end()
+
+        accum = getattr(self, "_test_cartesian_preds", None)
+        if not accum:
+            return
+
+        for task_name, pred_list in self._test_cartesian_preds.items():
+            if not pred_list or not self._test_cartesian_targets.get(task_name):
+                continue
+            pred_vec = torch.cat(pred_list, dim=0)
+            targ_vec = torch.cat(self._test_cartesian_targets[task_name], dim=0)
+
+            mae = (pred_vec - targ_vec).abs().mean().item()
+            mad = (targ_vec - targ_vec.mean()).abs().mean().item()
+            mae_over_mad = mae / mad if mad > 1e-10 else float("nan")
+
+            self.log(
+                f"metric_test/MAE_over_MAD/{task_name}",
+                mae_over_mad,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
+            )
+            self.log(
+                f"test/MAE_over_MAD/{task_name}",
+                mae_over_mad,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
+            )
+
+        self._test_cartesian_preds = {}
+        self._test_cartesian_targets = {}
+
     def test_step(self, batch, batch_idx):
         loss, preds, labels = self.shared_step(batch, "test")
         self.update_metrics(preds, labels, "test")
@@ -407,11 +450,18 @@ class ModelForPyGData(BaseModel):
             # ✅ 关键：取到正确的 ijk=ikj / ij=ji / ijkl=... 等
             formula = self._get_tensor_formula(task_name, task)
 
-            mae_cart, mse_cart = ModelForPyGData._cartesian_full_mae_mse_from_irreps(
+            pred_vec, targ_vec, mae_cart, mse_cart = ModelForPyGData._cartesian_full_mae_mse_from_irreps(
                 pred_irreps=p_ir,
                 target_irreps=l_ir,
                 formula=formula,
             )
+
+            # Accumulate for MAE/MAD computation in on_test_epoch_end
+            if task_name not in self._test_cartesian_preds:
+                self._test_cartesian_preds[task_name] = []
+                self._test_cartesian_targets[task_name] = []
+            self._test_cartesian_preds[task_name].append(pred_vec.detach().cpu())
+            self._test_cartesian_targets[task_name].append(targ_vec.detach().cpu())
 
             self.log(
                 f"metric_test/MAE_Cartesian/{task_name}",
@@ -424,6 +474,26 @@ class ModelForPyGData(BaseModel):
             )
             self.log(
                 f"metric_test/MSE_Cartesian/{task_name}",
+                mse_cart,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
+                batch_size=batch_size,
+                sync_dist=False,
+            )
+            # Mirror Cartesian metrics under `test/*` so they are easier to spot
+            # in W&B default test panels.
+            self.log(
+                f"test/MAE_Cartesian/{task_name}",
+                mae_cart,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
+                batch_size=batch_size,
+                sync_dist=False,
+            )
+            self.log(
+                f"test/MSE_Cartesian/{task_name}",
                 mse_cart,
                 on_step=False,
                 on_epoch=True,

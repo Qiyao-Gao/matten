@@ -1,0 +1,447 @@
+MAE_tensor: 0.12472513293758358
+MAE_voigt_matrix: 0.17596283543798716
+mae/mad:
+  MAE/MAE:
+  - 0.005351665512841242
+  - 0.006393732718977395
+  - 0.00589565188217194
+  - 0.0076822589167940955
+  - 0.014381494266763785
+  - 0.011698462714018554
+  - 0.013276468574192058
+  Property:
+  - k_voigt
+  - k_reuss
+  - k_vrh
+  - g_voigt
+  - g_reuss
+  - g_vrh
+  - y_mod
+mae/mad_prop_crystal:
+  g_reuss:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE/MAD:
+    - 0.011684131799278406
+    - 0.013678127122761832
+    - 0.015387669014186195
+    - 0.017103317826497974
+    - 0.018221160125996533
+    - 0.01906531302311955
+    - 0.0518497691212089
+  g_voigt:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE/MAD:
+    - 0.007564945601128099
+    - 0.006537680286110845
+    - 0.010263610328194703
+    - 0.0072704268259448784
+    - 0.007324372135299773
+    - 0.0071074976981441605
+    - 0.01224920258578592
+  g_vrh:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE/MAD:
+    - 0.009331910119681678
+    - 0.011164641499375443
+    - 0.014475909910985992
+    - 0.015578230755883129
+    - 0.012347769100831053
+    - 0.012316607086094113
+    - 0.030724783003025703
+  k_reuss:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE/MAD:
+    - 0.005304619275089492
+    - 0.006052604915817614
+    - 0.0058889405765895
+    - 0.00854824273644936
+    - 0.007776525281329823
+    - 0.009293285156080425
+    - 0.014037946473526549
+  k_voigt:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE/MAD:
+    - 0.005330833087701591
+    - 0.004874887179899951
+    - 0.00512750993544526
+    - 0.005411536344375997
+    - 0.006000200306254945
+    - 0.006293364626130855
+    - 0.009494880263258617
+  k_vrh:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE/MAD:
+    - 0.005325374064223441
+    - 0.005328756207670552
+    - 0.005337067463060817
+    - 0.006803776442082841
+    - 0.006768817248494768
+    - 0.009802440042915405
+    - 0.010580380820585357
+  y_mod:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE/MAD:
+    - 0.010667424974863289
+    - 0.014349786561531847
+    - 0.013843272004103017
+    - 0.014889193923389535
+    - 0.012197915414201808
+    - 0.023962232944433094
+    - 0.028126405750131332
+mae/separate_mad_prop_crystal:
+  g_reuss:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE/MAD:
+    - 0.012101871132110444
+    - 0.01545287113615573
+    - 0.012650494703325167
+    - 0.015168546582601094
+    - 0.020594168289730028
+    - 0.02185871707064441
+    - 0.057207846776305776
+  g_voigt:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE/MAD:
+    - 0.007874852496086372
+    - 0.007308854133755422
+    - 0.008437021315174143
+    - 0.0063909225466998445
+    - 0.008235894152715494
+    - 0.008152577520141552
+    - 0.012281568881005919
+  g_vrh:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE/MAD:
+    - 0.009702698160623148
+    - 0.012588107887209732
+    - 0.011878122988419384
+    - 0.01368725288111858
+    - 0.01396837384683287
+    - 0.014142313314403175
+    - 0.03211051297570577
+  k_reuss:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE/MAD:
+    - 0.005121321662105328
+    - 0.006942387348481733
+    - 0.0053747707325272325
+    - 0.008211507370601579
+    - 0.009002628704866606
+    - 0.011324061057619638
+    - 0.018321048567987264
+  k_voigt:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE/MAD:
+    - 0.005121306676171598
+    - 0.005564173455902559
+    - 0.00464205580121797
+    - 0.005183931397053859
+    - 0.007040868981885464
+    - 0.007662598542997951
+    - 0.012682097045236205
+  k_vrh:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE/MAD:
+    - 0.0051213141691335345
+    - 0.006106835007479094
+    - 0.004857060243723179
+    - 0.006523994162810555
+    - 0.007891610921277716
+    - 0.01196462066510435
+    - 0.013967956820364263
+  y_mod:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE/MAD:
+    - 0.010957241098865988
+    - 0.016224047427856363
+    - 0.011527549649438525
+    - 0.013188337073420032
+    - 0.013917540720132668
+    - 0.027415684965085937
+    - 0.030309640651293088
+mae_prop:
+  MAE:
+  - 0.3092195813377287
+  - 0.37125699060981115
+  - 0.34100084842305606
+  - 0.23762699335564422
+  - 0.42951181640329145
+  - 0.3526311291248321
+  - 1.001743211130391
+  Property:
+  - k_voigt
+  - k_reuss
+  - k_vrh
+  - g_voigt
+  - g_reuss
+  - g_vrh
+  - y_mod
+mae_prop_crystal:
+  g_reuss:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE:
+    - 0.34895349392179775
+    - 0.4085053414143294
+    - 0.459561819231111
+    - 0.5108006838454208
+    - 0.5441857040390212
+    - 0.5693968286579233
+    - 1.5485239643566666
+  g_voigt:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE:
+    - 0.23399826764043158
+    - 0.20222298242419764
+    - 0.3174731403456306
+    - 0.22488823740172395
+    - 0.2265568692203705
+    - 0.21984852718254547
+    - 0.37889131477999966
+  g_vrh:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE:
+    - 0.28129525073849615
+    - 0.3365399569535677
+    - 0.4363527569227795
+    - 0.469580425694003
+    - 0.3722034139563494
+    - 0.37126408571202174
+    - 0.9261486049350004
+  k_reuss:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE:
+    - 0.30801678377251623
+    - 0.35144914327228716
+    - 0.3419458479794412
+    - 0.496360266033133
+    - 0.4515499005421957
+    - 0.5396217251441607
+    - 0.8151241209433333
+  k_voigt:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE:
+    - 0.30801588245847783
+    - 0.2816712982566483
+    - 0.29626785749949813
+    - 0.3126789218770611
+    - 0.3466919638738091
+    - 0.36363101734000014
+    - 0.5486147990399993
+  k_vrh:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE:
+    - 0.3080163331152006
+    - 0.3082119541946
+    - 0.30869267205179085
+    - 0.3935262097558473
+    - 0.39150419168015876
+    - 0.5669670526779599
+    - 0.6119626647849993
+  y_mod:
+    Crystal:
+    - cubic
+    - tetragonal
+    - hexagonal
+    - orthorhombic
+    - trigonal
+    - monoclinic
+    - triclinic
+    MAE:
+    - 0.804884257368295
+    - 1.0827277742462043
+    - 1.044509966821919
+    - 1.1234274271512747
+    - 0.9203636409664016
+    - 1.8080112223721825
+    - 2.122208617166668
+mae_prop_log10:
+  MAE:
+  - 0.0020142877298037925
+  - 0.003893116084159578
+  - 0.002415201192618198
+  - 0.0028133369245354495
+  - 0.008325393974308428
+  - 0.004413409606451865
+  - 0.004219818182706428
+  Property:
+  - k_voigt
+  - k_reuss
+  - k_vrh
+  - g_voigt
+  - g_reuss
+  - g_vrh
+  - y_mod
+mae_tensor_crystal:
+  Crystal:
+  - cubic
+  - tetragonal
+  - hexagonal
+  - orthorhombic
+  - trigonal
+  - monoclinic
+  - triclinic
+  MAE:
+  - 0.08950092280360301
+  - 0.1135926639200059
+  - 0.12377980369270669
+  - 0.1511539336601616
+  - 0.193736986553738
+  - 0.2314952395346128
+  - 0.5507363048751028
+mae_voigt_crystal:
+  Crystal:
+  - cubic
+  - tetragonal
+  - hexagonal
+  - orthorhombic
+  - trigonal
+  - monoclinic
+  - triclinic
+  MAE:
+  - 0.1331600133469654
+  - 0.16543558228681443
+  - 0.17282180819628304
+  - 0.2162915989645761
+  - 0.24857604187957452
+  - 0.3007458541069293
+  - 0.6463721327843518
