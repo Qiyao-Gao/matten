@@ -153,7 +153,7 @@ slurm_bec_log/
 slurm_di_log/
 train_bec/
 train_piezoelectric/
-train_materials_tensor_dielectric/
-
+train_dielectric/
+train_NMR/
 wandb_logs/
 *.sh
