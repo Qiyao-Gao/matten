@@ -62,7 +62,9 @@ def main(config: Dict):
 
     # test
     logger.info("Start testing!")
-    trainer.test(ckpt_path="best", datamodule=dm)
+    # PyTorch >=2.6 defaults torch.load(weights_only=True), which can fail
+    # for trusted full checkpoints containing custom classes.
+    trainer.test(ckpt_path="best", datamodule=dm, weights_only=False)
 
     # print path of best checkpoint
     logger.info(f"Best checkpoint path: {trainer.checkpoint_callback.best_model_path}")
