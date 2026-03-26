@@ -157,3 +157,4 @@ train_dielectric/
 train_NMR/
 wandb_logs/
 *.sh
+train_dipole/
